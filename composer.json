@@ -10,7 +10,9 @@
     }
   ],
   "autoload": {
-    "psr-4": { "MajidMvulle\\StorageBundle\\": "src/" }
+    "psr-4": {
+      "MajidMvulle\\Bundle\\StorageBundle\\": "src/"
+    }
 
   },
   "require": {
