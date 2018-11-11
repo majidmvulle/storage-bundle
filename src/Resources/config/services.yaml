@@ -1,0 +1,17 @@
+services:
+    majidmvulle.storage.service.s3:
+        class: Aws\S3\S3Client
+        arguments: [~]
+
+    majidmvulle.storage.filesystem.s3:
+        class: MajidMvulle\Bundle\StorageBundle\Filesystem\AwsS3
+        arguments: [~, ~, ~]
+
+    majidmvulle.storage.filesystem.local:
+        class: MajidMvulle\Bundle\StorageBundle\Filesystem\Local
+
+    majidmvulle.storage.metadata.amazon:
+        class: MajidMvulle\Bundle\StorageBundle\Metadata\AmazonMetadataBuilder
+
+    MajidMvulle\Bundle\StorageBundle\MediaManager:
+        arguments: ['@doctrine.orm.entity_manager', '@service_container']
