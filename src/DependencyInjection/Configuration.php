@@ -29,7 +29,6 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->children()
-                ->scalarNode('baseUrl')->isRequired()->end()
                 ->arrayNode('filesystem')
                     ->children()
                         ->arrayNode('local')
@@ -40,6 +39,7 @@ class Configuration implements ConfigurationInterface
                         ->arrayNode('s3')
                             ->children()
                                 ->scalarNode('directory')->defaultValue('')->end()
+                                ->scalarNode('basePath')->isRequired()->end()
                                 ->scalarNode('deferDirectory')->defaultValue('%kernel.root_dir%/../public/uploads/storage')->end()
                                 ->booleanNode('deferUpload')->defaultValue(false)->end()
                                 ->scalarNode('bucket')->isRequired()->end()
@@ -47,9 +47,9 @@ class Configuration implements ConfigurationInterface
                                 ->scalarNode('secretKey')->isRequired()->end()
                                 ->scalarNode('cache_control')->defaultValue('')->end()
                                 ->scalarNode('acl')
-                                    ->defaultValue('public')
+                                    ->defaultValue('public-read')
                                     ->validate()
-                                    ->ifNotInArray(['private', 'public', 'open', 'auth_read', 'owner_read', 'owner_full_control'])
+                                    ->ifNotInArray(['private', 'public-read', 'authenticated-read', 'bucket-owner-read', 'bucket-owner-full-control'])
                                         ->thenInvalid('Invalid acl permission - "%s"')
                                     ->end()
                                 ->end()

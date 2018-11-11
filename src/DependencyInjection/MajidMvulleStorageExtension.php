@@ -33,14 +33,12 @@ class MajidMvulleStorageExtension extends Extension
         return 'majidmvulle_storage';
     }
 
-    private function configureFilesystemAdapter(ContainerBuilder $container, array $config): void
+    private function configureFilesystemAdapter(ContainerBuilder $container, array $config)
     {
-        $container->setParameter('majidmvulle.storage.base_url', $config['baseUrl']);
-
         // add the default configuration for the local filesystem
         if ($container->hasDefinition('majidmvulle.storage.filesystem.local') && isset($config['filesystem']['local'])) {
             $container->getDefinition('majidmvulle.storage.filesystem.local')->addArgument($config['filesystem']['local']['directory']);
-            $container->setParameter('majidmvulle.storage.filesystem.local.directory', $config['filesystem']['local']['directory']);
+            $container->setParameter('majidmvulle.storage.base_path', $config['filesystem']['local']['directory']);
         } else {
             $container->removeDefinition('majidmvulle.storage.filesystem.local');
         }
@@ -50,23 +48,25 @@ class MajidMvulleStorageExtension extends Extension
             $container->getDefinition('majidmvulle.storage.filesystem.s3')
                 ->replaceArgument(0, new Reference('majidmvulle.storage.service.s3'))
                 ->replaceArgument(1, $config['filesystem']['s3']['bucket'])
-                ->replaceArgument(2, ['region' => $config['filesystem']['s3']['region'], 'directory' => $config['filesystem']['s3']['directory'], 'ACL' => $config['filesystem']['s3']['acl']]);
+                ->replaceArgument(2, ['region' => $config['filesystem']['s3']['region'], 'directory' => $config['filesystem']['s3']['directory'], 'acl' => $config['filesystem']['s3']['acl']]);
 
             $container->setParameter('majidmvulle.storage.filesystem.s3.bucket', $config['filesystem']['s3']['bucket']);
+            $container->setParameter('majidmvulle.storage.base_path', $config['filesystem']['s3']['basePath']);
 
             $container->getDefinition('majidmvulle.storage.metadata.amazon')
-                ->addArgument(['acl' => $config['filesystem']['s3']['acl'], 'encryption' => $config['filesystem']['s3']['encryption'], 'meta' => $config['filesystem']['s3']['meta'], 'cache_control' => $config['filesystem']['s3']['cache_control']]);
+                ->addArgument(['acl' => $config['filesystem']['s3']['acl'], 'encryption' => $config['filesystem']['s3']['encryption'], 'meta' => $config['filesystem']['s3']['meta'], 'cache_control' => $config['filesystem']['s3']['cache_control'],]);
 
             if (3 === $config['filesystem']['s3']['sdk_version']) {
-                $arguments = ['region' => $config['filesystem']['s3']['region'], 'version' => $config['filesystem']['s3']['version']];
+                $arguments = ['region' => $config['filesystem']['s3']['region'], 'version' => $config['filesystem']['s3']['version'],];
 
                 if (isset($config['filesystem']['s3']['secretKey'], $config['filesystem']['s3']['accessKey'])) {
-                    $arguments['credentials'] = ['secret' => $config['filesystem']['s3']['secretKey'], 'key' => $config['filesystem']['s3']['accessKey']];
+                    $arguments['credentials'] = ['secret' => $config['filesystem']['s3']['secretKey'], 'key' => $config['filesystem']['s3']['accessKey'],];
                 }
 
                 $container->getDefinition('majidmvulle.storage.service.s3')->replaceArgument(0, $arguments);
+
             } else {
-                $container->getDefinition('majidmvulle.storage.service.s3')->replaceArgument(0, ['secret' => $config['filesystem']['s3']['secretKey'], 'key' => $config['filesystem']['s3']['accessKey']]);
+                $container->getDefinition('majidmvulle.storage.service.s3')->replaceArgument(0, ['secret' => $config['filesystem']['s3']['secretKey'], 'key' => $config['filesystem']['s3']['accessKey'],]);
             }
         } else {
             $container->removeDefinition('majidmvulle.storage.filesystem.s3');
