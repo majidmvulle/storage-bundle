@@ -59,8 +59,10 @@ class MediaManager
         $media->setContentSize($file->getSize());
         $media->setChecksum(sha1_file($realPath));
         $media->setFilesystem($this->getFilesystemName());
+        $media->setBasePath($this->container->getParameter('majidmvulle.storage.base_path'));
         $media->setPath($path);
         $media->setEnabled(true);
+        $media->setGalleryMedia(null); //reset to not have ArrayCollection issue
 
         $filesystem = $this->container->get($this->getFilesystemName());
 
@@ -128,7 +130,24 @@ class MediaManager
         }
     }
 
-    public function delete(Media $media, bool $force = false): void
+    public function deleteGallery(Gallery $gallery, bool $force = false): void
+    {
+        $galleryMedia = $gallery->getGalleryMedia();
+
+        foreach ($galleryMedia as $gMedia) {
+            $this->deleteMedia($gMedia->getMedia(), $force);
+        }
+
+        if ($force) {
+            $this->entityManager->remove($gallery);
+        } else {
+            $gallery->setDeleted(true);
+        }
+
+        $this->entityManager->flush();
+    }
+
+    public function deleteMedia(Media $media, bool $force = false): void
     {
         if ($force) {
             $key = sprintf('%s/%s', $media->getPath(), $media->getName());
@@ -145,14 +164,9 @@ class MediaManager
         $this->entityManager->flush();
     }
 
-    public function getFilePath(Media $media): string
-    {
-        return sprintf('%s/%s', $this->getBasePath($media), $media->getPathAndName());
-    }
-
     public function getFile(Media $media): mixed
     {
-        return file_get_contents($this->getFilePath($media));
+        return file_get_contents($media->getFullPath());
     }
 
     public function getFilesystem(): Adapter
@@ -160,7 +174,7 @@ class MediaManager
         return $this->container->get($this->getFilesystemName());
     }
 
-    public function getFilesystemName(): ?string
+    public function getFilesystemName(): string
     {
         if ($this->container->has('majidmvulle.storage.filesystem.local')) {
             return 'majidmvulle.storage.filesystem.local';
@@ -169,14 +183,48 @@ class MediaManager
         }
     }
 
-    private function getBasePath(Media $media): ?string
+    public function reorder(Media $media, int $position): void
     {
-        $filesystemName = $media->getFilesystem();
+        $indexOfMedia = false;
+        $galleryMedia = $media->getGallery()->getGalleryMedia();
 
-        if ('majidmvulle.storage.filesystem.local' === $filesystemName) {
-            return $this->container->getParameter('majidmvulle.storage.filesystem.local.directory');
-        } elseif ('majidmvulle.storage.filesystem.s3' === $filesystemName) {
-            return $this->container->getParameter('majidmvulle.storage.filesystem.s3.bucket');
+        if ($position < 0 || $position >= $galleryMedia->count()) {
+            throw new \InvalidArgumentException(sprintf('Position %d is invalid', $position));
         }
+
+        for($i = 0; $i < $galleryMedia->count(); $i++){
+            if($galleryMedia[$i]->getMedia()->getId() === $media->getId()){
+                $indexOfMedia = $i;
+            }
+        }
+
+        if($i === false){
+            throw new \InvalidArgumentException('Unable to reorder media');
+        }
+
+        if ($indexOfMedia === $position) {
+            return;
+        }
+
+        $galleryMediaArray = $galleryMedia->toArray();
+
+        $actualMedia = $galleryMediaArray[$indexOfMedia];
+
+        unset($galleryMediaArray[$indexOfMedia]);
+        $galleryMediaArray = array_values($galleryMediaArray);
+
+        $aCopyOfGalleryMediaArray = $galleryMediaArray; //make a copy, just to be safe
+
+        for ($i = $position; $i < count($aCopyOfGalleryMediaArray); ++$i) {
+            $galleryMediaArray[$i + 1] = $aCopyOfGalleryMediaArray[$i];
+        }
+
+        $galleryMediaArray[$position] = $actualMedia;
+
+        for ($i = 0; $i < count($galleryMediaArray); ++$i) {
+            $galleryMediaArray[$i]->setPosition($i);
+        }
+
+        $this->entityManager->flush();
     }
 }
