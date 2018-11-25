@@ -11,7 +11,6 @@ use MajidMvulle\Bundle\StorageBundle\Entity\GalleryMedia;
 use MajidMvulle\Bundle\StorageBundle\Entity\HasMediaInterface;
 use MajidMvulle\Bundle\StorageBundle\Entity\Media;
 use MajidMvulle\Bundle\StorageBundle\Filesystem\Local;
-use Sonata\UserBundle\Entity\BaseUser;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -39,17 +38,21 @@ class MediaManager
         $this->container = $container;
     }
 
-    public function saveFile(UploadedFile $file, BaseUser $user): Media
+    public function saveFile(UploadedFile $file, HasMediaInterface $relatedEntity): Media
     {
+        $folder = trim($relatedEntity->getFolder());
+
+        if ($folder) {
+            $folder = sprintf('/%s', $folder);
+        }
+
         $dateString = (new \DateTime())->format('Ymd');
-        $userId = (int) $user->getId();
+        $userId = (int) $relatedEntity->getUser()->getId();
         $realPath = $file->getRealPath();
         $m = microtime(true);
-
         $name = sha1(base_convert((int) (floor($m).($m - floor($m)) * 1000000), 10, 36).$file->getClientOriginalName());
         $sizes = getimagesize($realPath);
         $path = sha1(base_convert((int) (floor($userId).($userId - floor($userId)) * 1000000), 10, 36)).'/'.$dateString;
-
         $media = new Media();
         $media->setName($name);
         $media->setOriginalName($file->getClientOriginalName());
@@ -59,11 +62,10 @@ class MediaManager
         $media->setContentSize($file->getSize());
         $media->setChecksum(sha1_file($realPath));
         $media->setFilesystem($this->getFilesystemName());
-        $media->setBasePath($this->container->getParameter('majidmvulle.storage.base_path'));
+        $media->setBasePath(sprintf('%s%s', $this->container->getParameter('majidmvulle.storage.base_path'), $folder));
         $media->setPath($path);
         $media->setEnabled(true);
         $media->setGalleryMedia(null); //reset to not have ArrayCollection issue
-
         $filesystem = $this->container->get($this->getFilesystemName());
 
         if ($filesystem instanceof Local) {
@@ -91,7 +93,6 @@ class MediaManager
             $gallery->setRelatedEntity(get_class($relatedEntity));
             $gallery->setRelatedEntityId($relatedEntity->getId()->toString());
             $gallery->setEnabled(true);
-
             $this->entityManager->persist($gallery);
 
             if ($andFlush) {
@@ -106,16 +107,13 @@ class MediaManager
 
         /** @var UploadedFile $photo */
         foreach ($photos as $photo) {
-            $media = $this->saveFile($photo, $relatedEntity->getUser());
-
+            $media = $this->saveFile($photo, $relatedEntity);
             $galleryMedia = new GalleryMedia();
             $galleryMedia->setMedia($media);
             $galleryMedia->setGallery($gallery);
             $galleryMedia->setPosition($galleryMediaNextIndex);
             $galleryMedia->setEnabled(true);
-
             $this->entityManager->persist($galleryMedia);
-
             ++$galleryMediaNextIndex;
         }
 
@@ -160,7 +158,6 @@ class MediaManager
         } else {
             $media->setDeleted(true);
         }
-
         $this->entityManager->flush();
     }
 
@@ -192,13 +189,13 @@ class MediaManager
             throw new \InvalidArgumentException(sprintf('Position %d is invalid', $position));
         }
 
-        for($i = 0; $i < $galleryMedia->count(); $i++){
-            if($galleryMedia[$i]->getMedia()->getId() === $media->getId()){
+        for ($i = 0; $i < $galleryMedia->count(); ++$i) {
+            if ($galleryMedia[$i]->getMedia()->getId() === $media->getId()) {
                 $indexOfMedia = $i;
             }
         }
 
-        if($i === false){
+        if (false === $i) {
             throw new \InvalidArgumentException('Unable to reorder media');
         }
 
@@ -211,8 +208,8 @@ class MediaManager
         $actualMedia = $galleryMediaArray[$indexOfMedia];
 
         unset($galleryMediaArray[$indexOfMedia]);
-        $galleryMediaArray = array_values($galleryMediaArray);
 
+        $galleryMediaArray = array_values($galleryMediaArray);
         $aCopyOfGalleryMediaArray = $galleryMediaArray; //make a copy, just to be safe
 
         for ($i = $position; $i < count($aCopyOfGalleryMediaArray); ++$i) {

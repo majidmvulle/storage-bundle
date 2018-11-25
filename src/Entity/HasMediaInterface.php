@@ -21,4 +21,6 @@ interface HasMediaInterface
     public function setGallery(?Gallery $gallery): self;
 
     public function getUser(): BaseUser;
+
+    public function getFolder(): string;
 }
