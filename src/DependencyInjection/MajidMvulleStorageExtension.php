@@ -70,7 +70,6 @@ class MajidMvulleStorageExtension extends Extension
             }
         } else {
             $container->removeDefinition('majidmvulle.storage.filesystem.s3');
-            $container->removeDefinition('majidmvulle.storage.filesystem.s3');
         }
     }
 }
