@@ -195,7 +195,7 @@ class MediaManager
             }
         }
 
-        if (false === $i) {
+        if (false === $indexOfMedia) {
             throw new \InvalidArgumentException('Unable to reorder media');
         }
 
