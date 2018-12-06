@@ -42,10 +42,6 @@ class MediaManager
     {
         $folder = trim($relatedEntity->getFolder());
 
-        if ($folder) {
-            $folder = sprintf('/%s', $folder);
-        }
-
         $dateString = (new \DateTime())->format('Ymd');
         $userId = (int) $relatedEntity->getUser()->getId();
         $realPath = $file->getRealPath();
@@ -75,8 +71,11 @@ class MediaManager
             $media->setTransportable(true);
             $media->setLocal(false);
         }
-
-        if ($filesystem->write(sprintf('%s/%s', $path, $name), file_get_contents($realPath))) {
+        $key = sprintf('%s/%s', $path, $name);
+        if ($folder) {
+            $key = sprintf('%s/%s', $folder, $key);
+        }
+        if ($filesystem->write($key, file_get_contents($realPath))) {
             $this->entityManager->persist($media);
             $this->entityManager->flush();
         }
